@@ -43,41 +43,8 @@ If you run containerlab on the same linux machine you should add the following r
 The bridges are specific to your environment
 
 ```
-sudo iptables -I FORWARD 1 -i br-1f1c85a8b4c5 -o br-ee84e9546df8 -j ACCEPT
-sudo iptables -I FORWARD 1 -o br-1f1c85a8b4c5 -i br-ee84e9546df8 -j ACCEPT
-```
-
-## install nats
-
-We use [NATS](https://nats.io) between the vendor specific network device operator (e.g. [srl-k8s-operator](https://github.com/netw-device-driver/srl-k8s-operator)) and the device driver in order aggregate the CRUD operations to the device.
-
-Install the nats operator
-
-```
-kubectl apply -f https://github.com/nats-io/nats-operator/releases/latest/download/00-prereqs.yaml
-kubectl apply -f https://github.com/nats-io/nats-operator/releases/latest/download/10-deployment.yaml
-
-```
-
-install a nats cluster
-
-```
-apiVersion: nats.io/v1alpha2
-kind: NatsCluster
-metadata:
-  name: nats
-spec:
-  size: 1
-  version: "1.3.0"
-```
-
-This should run a nats cluster in the default namespace
-
-```
-kubectl get pods
-NAME                             READY   STATUS    RESTARTS   AGE
-nats-1                           1/1     Running   0          2m57s
-nats-operator-7b86849d86-7rc59   1/1     Running   0          4m6s
+sudo iptables -I FORWARD 1 -i br-1283e519ba86 -o br-1f1c85a8b4c5 -j ACCEPT
+sudo iptables -I FORWARD 1 -o br-1283e519ba86 -i br-1f1c85a8b4c5 -j ACCEPT
 ```
 
 ## install the network device controller
@@ -135,6 +102,7 @@ The following steps should be followed:
         - credential name: reference to the secret
         - encoding: json_ietf is used for now
         - skipVerify: skips certificate verification
+- deploy a subscription profile for the device -> need to change this part
 
 Example of configuration elements are supplied below
 
@@ -185,6 +153,48 @@ spec:
       limits:
         memory: "256Mi"
         cpu: "250m"
+```
+
+```
+apiVersion: v1
+data:
+  subscriptions:
+    /acl
+    /bfd
+    /interface
+    /network-instance
+    /platform
+    /qos
+    /routing-policy
+    /tunnel
+    /tunnel-interface
+    /system/snmp
+    /system/sflow
+    /system/ntp
+    /system/network-instance
+    /system/name
+    /system/mtu
+    /system/maintenance
+    /system/lldp
+    /system/lacp
+    /system/authentication
+    /system/banner
+    /system/bridge-table
+    /system/ftp-server
+    /system/ip-load-balancing
+    /system/json-rpc-server
+  excption-paths:
+    interface[name=mgmt0]
+    network-instance[name=mgmt]
+    system/gnmi-server
+    system/tls
+    system/ssh-server
+    system/aaa
+    acl/cpm-filter
+kind: ConfigMap
+metadata:
+  name: srl-k8s-subscription-config
+  namespace: nddriver-system
 ```
 
 If the configuration was successfull you should see a new deployment per network node/device.
@@ -260,5 +270,5 @@ Events:             <none>
 In order to use the system, a SRL provider/operator should be installed, which defines the CRD(s) to configure the SRL devices
 
 ```
-kubect apply -f https://raw.githubusercontent.com/netw-device-driver/srl-k8s-operator/master/manifest.yaml
+kubectl apply -f https://raw.githubusercontent.com/netw-device-driver/srl-k8s-operator/master/manifest.yaml
 ```
